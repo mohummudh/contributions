@@ -90,19 +90,18 @@ struct GitHubContributionsWidget: Widget {
 
 struct GitHubContributionsWidgetEntryView: View {
     @Environment(\.widgetFamily) private var family
-    @Environment(\.widgetRenderingMode) private var renderingMode
     let entry: GitHubContributionsEntry
 
     private var maxWeeks: Int {
         switch family {
         case .systemSmall:
-            return 20
+            return 22
         case .systemMedium:
-            return 32
+            return 36
         case .systemLarge:
             return 53
         default:
-            return 24
+            return 28
         }
     }
 
@@ -164,9 +163,7 @@ struct GitHubContributionsWidgetEntryView: View {
                     VStack(spacing: cellSpacing) {
                         ForEach(0..<7, id: \.self) { dayIndex in
                             let cell = visibleWeeks[weekIndex][dayIndex]
-                            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                .fill(fillColor(for: cell.level))
-                                .frame(width: cellSize, height: cellSize)
+                            contributionCell(level: cell.level)
                         }
                     }
                 }
@@ -199,29 +196,20 @@ struct GitHubContributionsWidgetEntryView: View {
         .padding(12)
     }
 
-    private func fillColor(for level: Int) -> Color {
+    @ViewBuilder
+    private func contributionCell(level: Int) -> some View {
         let clamped = min(max(level, 0), 4)
+        
+    }
 
-        if renderingMode == .vibrant {
-            // Vibrant mode (glass/overlay): system strips hue, only opacity matters.
-            // Use wide opacity spread so levels are clearly distinguishable.
-            switch clamped {
-            case 0: return Color.white.opacity(0.0)
-            case 1: return Color.white.opacity(0.25)
-            case 2: return Color.white.opacity(0.50)
-            case 3: return Color.white.opacity(0.75)
-            default: return Color.white.opacity(1.0)
-            }
-        } else {
-            // Full color mode (desktop focus): GitHub's actual dark-mode greens.
-            switch clamped {
-            case 0: return Color(red: 22/255, green: 27/255, blue: 34/255)   // #161B22
-            case 1: return Color(red: 14/255, green: 68/255, blue: 41/255)   // #0E4429
-            case 2: return Color(red: 0/255, green: 109/255, blue: 50/255)   // #006D32
-            case 3: return Color(red: 38/255, green: 166/255, blue: 65/255)  // #26A641
-            default: return Color(red: 57/255, green: 211/255, blue: 83/255) // #39D353
-            }
-        }
+    private func cellOpacity(for level: Int) -> Double {
+        switch level {
+        case 0: return 0.03
+        case 1: return 0.12
+        case 2: return 0.25
+        case 3: return 0.40
+        default: return 0.55
         }
     }
 }
+
