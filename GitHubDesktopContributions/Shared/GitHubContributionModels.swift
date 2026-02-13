@@ -18,5 +18,6 @@ struct GitHubContributionHeatmap: Hashable {
     let username: String
     let weeks: [[GitHubContributionCell]]
     let totalContributions: Int
+    let todayContributions: Int
     let fetchedAt: Date
 }

@@ -247,6 +247,7 @@ struct GitHubContributionsService {
             username: safeUsername,
             weeks: [],
             totalContributions: 0,
+            todayContributions: 0,
             fetchedAt: Date()
         )
     }
@@ -261,6 +262,7 @@ struct GitHubContributionsService {
 
         var calendar = Calendar(identifier: .gregorian)
         calendar.firstWeekday = 1
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
 
         let normalizedFirstDay = calendar.startOfDay(for: firstDay.date)
         let weekday = calendar.component(.weekday, from: normalizedFirstDay)
@@ -278,6 +280,8 @@ struct GitHubContributionsService {
         let weekCount = (daySpan / 7) + 1
         var weeks = Array(repeating: Array(repeating: GitHubContributionCell.empty, count: 7), count: weekCount)
         var total = 0
+        let todayDate = calendar.startOfDay(for: Date())
+        var todayContributions = 0
 
         for day in sortedDays {
             let normalizedDate = calendar.startOfDay(for: day.date)
@@ -297,12 +301,17 @@ struct GitHubContributionsService {
             let level = min(max(day.level, 0), 4)
             weeks[weekIndex][dayIndex] = GitHubContributionCell(date: normalizedDate, count: day.count, level: level)
             total += day.count
+            
+            if normalizedDate == todayDate {
+                todayContributions = day.count
+            }
         }
 
         return GitHubContributionHeatmap(
             username: username,
             weeks: weeks,
             totalContributions: total,
+            todayContributions: todayContributions,
             fetchedAt: fetchedAt
         )
     }

@@ -142,7 +142,7 @@ struct GitHubContributionsWidgetEntryView: View {
         let visibleWeeks = Array(heatmap.weeks.suffix(maxWeeks))
 
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .center, spacing: 8) {
                 Text("@\(heatmap.username)")
                     .font(.headline)
                     .foregroundStyle(.white)
@@ -151,9 +151,9 @@ struct GitHubContributionsWidgetEntryView: View {
                 Spacer()
 
                 if family != .systemSmall {
-                    Text("\(heatmap.totalContributions)")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.5))
+                    Text(verbatim: "\(heatmap.totalContributions)/\(heatmap.todayContributions)")
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(.white)
                         .lineLimit(1)
                 }
             }
@@ -199,7 +199,9 @@ struct GitHubContributionsWidgetEntryView: View {
     @ViewBuilder
     private func contributionCell(level: Int) -> some View {
         let clamped = min(max(level, 0), 4)
-        
+        RoundedRectangle(cornerRadius: 2)
+            .fill(.green.opacity(cellOpacity(for: clamped)))
+            .frame(width: cellSize, height: cellSize)
     }
 
     private func cellOpacity(for level: Int) -> Double {
@@ -211,5 +213,15 @@ struct GitHubContributionsWidgetEntryView: View {
         default: return 0.55
         }
     }
+}
+#Preview(as: .systemMedium) {
+    GitHubContributionsWidget()
+} timeline: {
+    GitHubContributionsEntry(
+        date: Date(),
+        username: "octocat",
+        heatmap: GitHubContributionsService().mockHeatmap(for: "octocat"),
+        errorMessage: nil
+    )
 }
 
