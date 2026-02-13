@@ -41,8 +41,14 @@ struct GitHubContributionsService {
         let html = try await fetchContributionsHTML(for: lowercased)
         print("[ContributionsService] Got HTML, length: \(html.count)")
         let days = try parseContributionDays(from: html)
+        let totalFromSummary = Self.extractAnnualTotal(from: html)
         print("[ContributionsService] Parsed \(days.count) contribution days")
-        return try buildHeatmap(for: trimmedUsername, from: days, fetchedAt: Date())
+        return try buildHeatmap(
+            for: trimmedUsername,
+            from: days,
+            fetchedAt: Date(),
+            totalOverride: totalFromSummary
+        )
     }
 
     // MARK: - Networking
@@ -110,10 +116,13 @@ struct GitHubContributionsService {
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
         dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
 
-        // Step 1: Build a lookup from element ID → tooltip text.
-        // <tool-tip ... for="contribution-day-component-0-0" ...>3 contributions on March 9th.</tool-tip>
-        let tooltipPattern = #"<tool-tip[^>]*?\bfor\s*=\s*"([^"]*)"[^>]*>([^<]*)</tool-tip>"#
-        let tooltipRegex = try NSRegularExpression(pattern: tooltipPattern, options: [.caseInsensitive])
+        // Step 1: Build a lookup from element ID -> tooltip text.
+        // Works for both plain and nested tooltip markup.
+        let tooltipPattern = #"<tool-tip[^>]*?\bfor\s*=\s*"([^"]*)"[^>]*>(.*?)</tool-tip>"#
+        let tooltipRegex = try NSRegularExpression(
+            pattern: tooltipPattern,
+            options: [.caseInsensitive, .dotMatchesLineSeparators]
+        )
         let fullRange = NSRange(html.startIndex..<html.endIndex, in: html)
 
         var tooltips: [String: String] = [:]
@@ -122,13 +131,13 @@ struct GitHubContributionsService {
                   match.numberOfRanges >= 3,
                   let idRange = Range(match.range(at: 1), in: html),
                   let textRange = Range(match.range(at: 2), in: html) else { return }
-            tooltips[String(html[idRange])] = String(html[textRange])
+            let tooltipText = Self.plainText(fromHTML: String(html[textRange]))
+            tooltips[String(html[idRange])] = tooltipText
         }
 
-        // Step 2: Find all <td ...> tags that have both data-date and the ContributionCalendar-day class.
-        // These tags are single-line in GitHub's output.
-        let tdPattern = #"<td\b[^>]*\bdata-date\s*=\s*"([^"]*)"[^>]*>"#
-        let tdRegex = try NSRegularExpression(pattern: tdPattern, options: [.caseInsensitive])
+        // Step 2: Parse day cells from either table (<td>) or SVG (<rect>) payloads.
+        let dayPattern = #"<(?:td|rect)\b[^>]*\bdata-date\s*=\s*"([^"]*)"[^>]*>"#
+        let dayRegex = try NSRegularExpression(pattern: dayPattern, options: [.caseInsensitive])
 
         let idAttrPattern = #"\bid\s*=\s*"([^"]*)""#
         let idRegex = try NSRegularExpression(pattern: idAttrPattern, options: [])
@@ -136,10 +145,16 @@ struct GitHubContributionsService {
         let levelAttrPattern = #"\bdata-level\s*=\s*"([^"]*)""#
         let levelRegex = try NSRegularExpression(pattern: levelAttrPattern, options: [])
 
-        var results: [GitHubContributionDay] = []
-        results.reserveCapacity(400)
+        let countAttrPattern = #"\bdata-count\s*=\s*"([^"]*)""#
+        let countRegex = try NSRegularExpression(pattern: countAttrPattern, options: [])
 
-        tdRegex.enumerateMatches(in: html, options: [], range: fullRange) { match, _, _ in
+        let ariaLabelPattern = #"\baria-label\s*=\s*"([^"]*)""#
+        let ariaLabelRegex = try NSRegularExpression(pattern: ariaLabelPattern, options: [])
+
+        var daysByDate: [Date: GitHubContributionDay] = [:]
+        daysByDate.reserveCapacity(400)
+
+        dayRegex.enumerateMatches(in: html, options: [], range: fullRange) { match, _, _ in
             guard let match,
                   let dateRange = Range(match.range(at: 1), in: html),
                   let tagRange = Range(match.range, in: html) else { return }
@@ -148,19 +163,39 @@ struct GitHubContributionsService {
             guard let date = dateFormatter.date(from: dateString) else { return }
 
             let tag = String(html[tagRange])
+            guard tag.contains("ContributionCalendar-day") ||
+                  tag.contains("data-level=") ||
+                  tag.contains("data-count=") else {
+                return
+            }
             let tagNSRange = NSRange(tag.startIndex..<tag.endIndex, in: tag)
 
             // Extract data-level.
-            var level = -1
+            var level: Int?
             if let levelMatch = levelRegex.firstMatch(in: tag, options: [], range: tagNSRange),
                let lvlRange = Range(levelMatch.range(at: 1), in: tag),
                let parsed = Int(tag[lvlRange]) {
                 level = min(max(parsed, 0), 4)
             }
 
-            // Extract id to look up tooltip.
-            var count = 0
-            if let idMatch = idRegex.firstMatch(in: tag, options: [], range: tagNSRange),
+            // Prefer structured count attributes first, then aria-label, then tooltip lookup.
+            var count: Int?
+            if let countMatch = countRegex.firstMatch(in: tag, options: [], range: tagNSRange),
+               let countRange = Range(countMatch.range(at: 1), in: tag) {
+                let value = String(tag[countRange]).replacingOccurrences(of: ",", with: "")
+                if let parsed = Int(value) {
+                    count = max(0, parsed)
+                }
+            }
+
+            if count == nil,
+               let ariaMatch = ariaLabelRegex.firstMatch(in: tag, options: [], range: tagNSRange),
+               let ariaRange = Range(ariaMatch.range(at: 1), in: tag) {
+                count = Self.extractContributionCount(from: String(tag[ariaRange]))
+            }
+
+            if count == nil,
+               let idMatch = idRegex.firstMatch(in: tag, options: [], range: tagNSRange),
                let idRange = Range(idMatch.range(at: 1), in: tag) {
                 let elementId = String(tag[idRange])
                 if let tipText = tooltips[elementId] {
@@ -168,18 +203,23 @@ struct GitHubContributionsService {
                 }
             }
 
-            // If no data-level, infer from count.
-            if level < 0 {
-                if count == 0 { level = 0 }
-                else if count <= 2 { level = 1 }
-                else if count <= 5 { level = 2 }
-                else if count <= 9 { level = 3 }
-                else { level = 4 }
-            }
+            let resolvedCount = count ?? 0
+            let resolvedLevel = level ?? Self.inferredContributionLevel(for: resolvedCount)
+            let parsedDay = GitHubContributionDay(date: date, count: resolvedCount, level: resolvedLevel)
 
-            results.append(GitHubContributionDay(date: date, count: count, level: level))
+            // Prefer the richest entry when duplicates appear.
+            if let existing = daysByDate[date] {
+                let shouldReplace = parsedDay.count > existing.count ||
+                    (parsedDay.count == existing.count && parsedDay.level > existing.level)
+                if shouldReplace {
+                    daysByDate[date] = parsedDay
+                }
+            } else {
+                daysByDate[date] = parsedDay
+            }
         }
 
+        let results = daysByDate.values.sorted(by: { $0.date < $1.date })
         if results.isEmpty {
             throw GitHubContributionsServiceError.parseFailed
         }
@@ -190,15 +230,72 @@ struct GitHubContributionsService {
     /// Extracts the integer contribution count from tooltip text like
     /// "3 contributions on March 9th." or "No contributions on February 9th."
     private static func extractContributionCount(from text: String) -> Int {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.lowercased().hasPrefix("no ") {
+        let normalized = plainText(fromHTML: text)
+        let lowercased = normalized.lowercased()
+        if lowercased.contains("no contributions") || lowercased.hasPrefix("no ") {
             return 0
         }
-        let parts = trimmed.components(separatedBy: " ")
-        if let first = parts.first, let count = Int(first) {
+
+        if let contributionRange = normalized.range(
+            of: #"([0-9][0-9,]*)\s+contributions?"#,
+            options: [.regularExpression, .caseInsensitive]
+        ) {
+            let matched = String(normalized[contributionRange])
+            if let token = matched.split(separator: " ").first {
+                let number = token.replacingOccurrences(of: ",", with: "")
+                if let count = Int(number) {
+                    return max(0, count)
+                }
+            }
+        }
+
+        if let token = normalized.components(separatedBy: CharacterSet.decimalDigits.inverted).first(where: { !$0.isEmpty }),
+           let count = Int(token) {
             return max(0, count)
         }
+
         return 0
+    }
+
+    /// Extracts annual total from summary strings like
+    /// "1,234 contributions in the last year".
+    private static func extractAnnualTotal(from html: String) -> Int? {
+        guard let range = html.range(
+            of: #"([0-9][0-9,]*)\s+contributions?\s+in\s+the\s+last\s+year"#,
+            options: [.regularExpression, .caseInsensitive]
+        ) else {
+            return nil
+        }
+
+        let matched = String(html[range])
+        guard let token = matched.split(separator: " ").first else {
+            return nil
+        }
+
+        return Int(token.replacingOccurrences(of: ",", with: ""))
+    }
+
+    private static func inferredContributionLevel(for count: Int) -> Int {
+        if count == 0 { return 0 }
+        if count <= 2 { return 1 }
+        if count <= 5 { return 2 }
+        if count <= 9 { return 3 }
+        return 4
+    }
+
+    private static func plainText(fromHTML html: String) -> String {
+        let withoutTags = html.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+        let decoded = withoutTags
+            .replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&#39;", with: "'")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+
+        return decoded
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Mock data
@@ -254,7 +351,12 @@ struct GitHubContributionsService {
 
     // MARK: - Grid builder
 
-    private func buildHeatmap(for username: String, from days: [GitHubContributionDay], fetchedAt: Date) throws -> GitHubContributionHeatmap {
+    private func buildHeatmap(
+        for username: String,
+        from days: [GitHubContributionDay],
+        fetchedAt: Date,
+        totalOverride: Int? = nil
+    ) throws -> GitHubContributionHeatmap {
         let sortedDays = days.sorted(by: { $0.date < $1.date })
         guard let firstDay = sortedDays.first, let lastDay = sortedDays.last else {
             throw GitHubContributionsServiceError.parseFailed
@@ -282,6 +384,9 @@ struct GitHubContributionsService {
         var total = 0
         let todayDate = calendar.startOfDay(for: Date())
         var todayContributions = 0
+        var hasExactToday = false
+        var latestKnownDate: Date?
+        var latestKnownCount = 0
 
         for day in sortedDays {
             let normalizedDate = calendar.startOfDay(for: day.date)
@@ -301,10 +406,31 @@ struct GitHubContributionsService {
             let level = min(max(day.level, 0), 4)
             weeks[weekIndex][dayIndex] = GitHubContributionCell(date: normalizedDate, count: day.count, level: level)
             total += day.count
-            
+
             if normalizedDate == todayDate {
                 todayContributions = day.count
+                hasExactToday = true
             }
+
+            if normalizedDate <= todayDate {
+                if let currentLatest = latestKnownDate {
+                    if normalizedDate > currentLatest {
+                        latestKnownDate = normalizedDate
+                        latestKnownCount = day.count
+                    }
+                } else {
+                    latestKnownDate = normalizedDate
+                    latestKnownCount = day.count
+                }
+            }
+        }
+
+        if !hasExactToday {
+            todayContributions = latestKnownCount
+        }
+
+        if let totalOverride, totalOverride > 0 {
+            total = max(total, totalOverride)
         }
 
         return GitHubContributionHeatmap(

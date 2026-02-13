@@ -20,4 +20,8 @@ struct GitHubContributionHeatmap: Hashable {
     let totalContributions: Int
     let todayContributions: Int
     let fetchedAt: Date
+
+    var totalOverTodayText: String {
+        "\(totalContributions) / \(todayContributions)"
+    }
 }

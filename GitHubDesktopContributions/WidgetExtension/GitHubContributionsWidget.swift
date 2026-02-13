@@ -150,12 +150,11 @@ struct GitHubContributionsWidgetEntryView: View {
 
                 Spacer()
 
-                if family != .systemSmall {
-                    Text(verbatim: "\(heatmap.totalContributions)/\(heatmap.todayContributions)")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                }
+                Text(verbatim: heatmap.totalOverTodayText)
+                    .font(.system(family == .systemSmall ? .caption2 : .caption, design: .monospaced))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
 
             HStack(alignment: .top, spacing: cellSpacing) {
@@ -224,4 +223,3 @@ struct GitHubContributionsWidgetEntryView: View {
         errorMessage: nil
     )
 }
-
