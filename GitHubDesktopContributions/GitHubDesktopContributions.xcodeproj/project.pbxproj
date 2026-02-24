@@ -62,10 +62,19 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		766048972F3E41D800294AB4 /* Exceptions for "WidgetExtension" folder in "GitHubDesktopContributionsWidgetExtensionExtension" target */ = {
+		76BA1DFF2F3FBC9000D39F96 /* Exceptions for "Shared" folder in "GitHubDesktopContributions" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
+				WidgetExtension/GitHubContributionsWidget.swift,
+				WidgetExtension/GitHubDesktopContributionsWidgetBundle.swift,
+				WidgetExtension/Info.plist,
+			);
+			target = 766048102F3E3DBD00294AB4 /* GitHubDesktopContributions */;
+		};
+		76BA1E002F3FBC9000D39F96 /* Exceptions for "Shared" folder in "GitHubDesktopContributionsWidgetExtensionExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				WidgetExtension/Info.plist,
 			);
 			target = 766048532F3E3ED700294AB4 /* GitHubDesktopContributionsWidgetExtensionExtension */;
 		};
@@ -79,15 +88,11 @@
 		};
 		766048422F3E3E4700294AB4 /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Shared;
-			sourceTree = "<group>";
-		};
-		766048472F3E3E4700294AB4 /* WidgetExtension */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				766048972F3E41D800294AB4 /* Exceptions for "WidgetExtension" folder in "GitHubDesktopContributionsWidgetExtensionExtension" target */,
+				76BA1DFF2F3FBC9000D39F96 /* Exceptions for "Shared" folder in "GitHubDesktopContributions" target */,
+				76BA1E002F3FBC9000D39F96 /* Exceptions for "Shared" folder in "GitHubDesktopContributionsWidgetExtensionExtension" target */,
 			);
-			path = WidgetExtension;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -133,7 +138,6 @@
 				7660486E2F3E401900294AB4 /* GitHubDesktopContributions.entitlements */,
 				7660483E2F3E3E4700294AB4 /* App */,
 				766048422F3E3E4700294AB4 /* Shared */,
-				766048472F3E3E4700294AB4 /* WidgetExtension */,
 				766048552F3E3ED700294AB4 /* Frameworks */,
 				766048122F3E3DBD00294AB4 /* Products */,
 			);
@@ -241,7 +245,6 @@
 			);
 			fileSystemSynchronizedGroups = (
 				766048422F3E3E4700294AB4 /* Shared */,
-				766048472F3E3E4700294AB4 /* WidgetExtension */,
 			);
 			name = GitHubDesktopContributionsWidgetExtensionExtension;
 			packageProductDependencies = (

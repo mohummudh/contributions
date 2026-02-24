@@ -1,5 +1,39 @@
 import Foundation
 
+// --- Mocking WidgetSharedConfig ---
+enum WidgetSharedConfig {
+    static let defaultUsername = "octocat"
+}
+
+// --- GitHubContributionModels.swift ---
+struct GitHubContributionDay: Hashable {
+    let date: Date
+    let count: Int
+    let level: Int
+}
+
+struct GitHubContributionCell: Hashable {
+    let date: Date?
+    let count: Int
+    let level: Int
+
+    static let empty = GitHubContributionCell(date: nil, count: 0, level: 0)
+}
+
+struct GitHubContributionHeatmap: Hashable {
+    let username: String
+    let weeks: [[GitHubContributionCell]]
+    let totalContributions: Int
+    let todayContributions: Int
+    let fetchedAt: Date
+
+    var totalOverTodayText: String {
+        "\(totalContributions) / \(todayContributions)"
+    }
+}
+
+// --- GitHubContributionsService.swift (Adapted) ---
+
 enum GitHubContributionsServiceError: LocalizedError {
     case invalidUsername
     case invalidResponse
@@ -39,7 +73,7 @@ struct GitHubContributionsService {
         let lowercased = trimmedUsername.lowercased()
         print("[ContributionsService] Fetching contributions for '\(lowercased)'")
         let html = try await fetchContributionsHTML(for: lowercased)
-        print("[ContributionsService] Got HTML, length: \(html.count)")
+        // print("[ContributionsService] Got HTML, length: \(html.count)")
         let days = try parseContributionDays(from: html)
         let totalFromSummary = Self.extractAnnualTotal(from: html)
         print("[ContributionsService] Parsed \(days.count) contribution days")
@@ -53,8 +87,6 @@ struct GitHubContributionsService {
 
     // MARK: - Networking
 
-    /// Fetches contributions HTML using the profile XHR endpoint (small fragment),
-    /// falling back to `/users/<name>/contributions`.
     private func fetchContributionsHTML(for username: String) async throws -> String {
         let encoded = username.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? username
 
@@ -117,7 +149,6 @@ struct GitHubContributionsService {
         dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
 
         // Step 1: Build a lookup from element ID -> tooltip text.
-        // Works for both plain and nested tooltip markup.
         let tooltipPattern = #"<tool-tip[^>]*?\bfor\s*=\s*"([^"]*)"[^>]*>(.*?)</tool-tip>"#
         let tooltipRegex = try NSRegularExpression(
             pattern: tooltipPattern,
@@ -227,8 +258,6 @@ struct GitHubContributionsService {
         return results
     }
 
-    /// Extracts the integer contribution count from tooltip text like
-    /// "3 contributions on March 9th." or "No contributions on February 9th."
     private static func extractContributionCount(from text: String) -> Int {
         let normalized = plainText(fromHTML: text)
         let lowercased = normalized.lowercased()
@@ -257,8 +286,6 @@ struct GitHubContributionsService {
         return 0
     }
 
-    /// Extracts annual total from summary strings like
-    /// "1,234 contributions in the last year".
     private static func extractAnnualTotal(from html: String) -> Int? {
         guard let range = html.range(
             of: #"([0-9][0-9,]*)\s+contributions?\s+in\s+the\s+last\s+year"#,
@@ -298,57 +325,6 @@ struct GitHubContributionsService {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // MARK: - Mock data
-
-    func mockHeatmap(for username: String) -> GitHubContributionHeatmap {
-        let safeUsername = username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? WidgetSharedConfig.defaultUsername : username
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.firstWeekday = 1
-
-        let today = calendar.startOfDay(for: Date())
-        let totalDays = 7 * 53
-
-        var days: [GitHubContributionDay] = []
-        days.reserveCapacity(totalDays)
-
-        for index in 0..<totalDays {
-            guard let date = calendar.date(byAdding: .day, value: -(totalDays - index - 1), to: today) else {
-                continue
-            }
-            let seed = (index * 37 + 11) % 100
-            let level: Int
-            let count: Int
-
-            switch seed {
-            case 0..<55:
-                level = 0
-                count = 0
-            case 55..<76:
-                level = 1
-                count = 1 + (seed % 2)
-            case 76..<90:
-                level = 2
-                count = 3 + (seed % 3)
-            case 90..<97:
-                level = 3
-                count = 6 + (seed % 4)
-            default:
-                level = 4
-                count = 11 + (seed % 6)
-            }
-
-            days.append(GitHubContributionDay(date: date, count: count, level: level))
-        }
-
-        return (try? buildHeatmap(for: safeUsername, from: days, fetchedAt: Date())) ?? GitHubContributionHeatmap(
-            username: safeUsername,
-            weeks: [],
-            totalContributions: 0,
-            todayContributions: 0,
-            fetchedAt: Date()
-        )
-    }
-
     // MARK: - Grid builder
 
     private func buildHeatmap(
@@ -382,13 +358,7 @@ struct GitHubContributionsService {
         let weekCount = (daySpan / 7) + 1
         var weeks = Array(repeating: Array(repeating: GitHubContributionCell.empty, count: 7), count: weekCount)
         var total = 0
-        
-        // Use the current device calendar to determine "today" (Year/Month/Day),
-        // but map it to the GMT calendar used for the graph.
-        let deviceCalendar = Calendar.current
-        let deviceComponents = deviceCalendar.dateComponents([.year, .month, .day], from: Date())
-        let todayDate = calendar.date(from: deviceComponents) ?? calendar.startOfDay(for: Date())
-
+        let todayDate = calendar.startOfDay(for: Date())
         var todayContributions = 0
         var hasExactToday = false
         var latestKnownDate: Date?
@@ -432,6 +402,7 @@ struct GitHubContributionsService {
         }
 
         if !hasExactToday {
+            print("No exact match for today \(todayDate). Using latest known count: \(latestKnownCount)")
             todayContributions = latestKnownCount
         }
 
@@ -446,5 +417,30 @@ struct GitHubContributionsService {
             todayContributions: todayContributions,
             fetchedAt: fetchedAt
         )
+    }
+}
+
+// --- Main execution ---
+
+@main
+struct App {
+    static func main() async {
+        let service = GitHubContributionsService()
+        let username = "torvalds" // A known user with contributions
+
+        do {
+            let heatmap = try await service.fetchHeatmap(for: username)
+            print("Total: \(heatmap.totalContributions)")
+            print("Today: \(heatmap.todayContributions)")
+            print("Text: \(heatmap.totalOverTodayText)")
+            
+            // Debugging Today Logic
+            let calendar = Calendar(identifier: .gregorian)
+            let today = calendar.startOfDay(for: Date())
+            print("Script considers today as: \(today)")
+            
+        } catch {
+            print("Error: \(error)")
+        }
     }
 }

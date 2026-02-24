@@ -122,6 +122,8 @@ struct GitHubContributionsWidgetEntryView: View {
 
     // GitHub dark theme background
     private let bgColor = Color(red: 13/255, green: 17/255, blue: 23/255)
+    // Brightened green ramp for better visibility on desktop, especially stage 1.
+    private let contributionGreen = Color(red: 67/255, green: 226/255, blue: 97/255)
 
     var body: some View {
         if let heatmap = entry.heatmap {
@@ -150,11 +152,17 @@ struct GitHubContributionsWidgetEntryView: View {
 
                 Spacer()
 
-                Text(verbatim: heatmap.totalOverTodayText)
-                    .font(.system(family == .systemSmall ? .caption2 : .caption, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                HStack(spacing: 0) {
+                    Text("\(heatmap.totalContributions)")
+                    Text(" / ")
+                        .foregroundStyle(.white.opacity(0.7))
+                    Text("\(heatmap.todayContributions)")
+                        .foregroundStyle(contributionGreen)
+                }
+                .font(.system(family == .systemSmall ? .caption2 : .caption, design: .monospaced))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             }
 
             HStack(alignment: .top, spacing: cellSpacing) {
@@ -199,27 +207,23 @@ struct GitHubContributionsWidgetEntryView: View {
     private func contributionCell(level: Int) -> some View {
         let clamped = min(max(level, 0), 4)
         RoundedRectangle(cornerRadius: 2)
-            .fill(.green.opacity(cellOpacity(for: clamped)))
+            .fill(cellColor(for: clamped))
             .frame(width: cellSize, height: cellSize)
     }
 
-    private func cellOpacity(for level: Int) -> Double {
+    private func cellColor(for level: Int) -> Color {
         switch level {
-        case 0: return 0.03
-        case 1: return 0.12
-        case 2: return 0.25
-        case 3: return 0.40
-        default: return 0.55
+        case 0:
+            return Color(red: 22/255, green: 27/255, blue: 34/255)
+        case 1:
+            return Color(red: 32/255, green: 120/255, blue: 72/255)
+        case 2:
+            return Color(red: 0/255, green: 143/255, blue: 74/255)
+        case 3:
+            return Color(red: 39/255, green: 185/255, blue: 87/255)
+        default:
+            return contributionGreen
         }
     }
 }
-#Preview(as: .systemMedium) {
-    GitHubContributionsWidget()
-} timeline: {
-    GitHubContributionsEntry(
-        date: Date(),
-        username: "octocat",
-        heatmap: GitHubContributionsService().mockHeatmap(for: "octocat"),
-        errorMessage: nil
-    )
-}
+
