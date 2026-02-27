@@ -84,40 +84,24 @@ struct GitHubContributionsWidget: Widget {
         }
         .configurationDisplayName("GitHub Contributions")
         .description("Shows your GitHub contribution heatmap. Right-click → Edit to set your username.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .supportedFamilies([.systemMedium])
     }
 }
 
 struct GitHubContributionsWidgetEntryView: View {
-    @Environment(\.widgetFamily) private var family
+    @Environment(\.widgetRenderingMode) private var renderingMode
     let entry: GitHubContributionsEntry
 
-    private var maxWeeks: Int {
-        switch family {
-        case .systemSmall:
-            return 22
-        case .systemMedium:
-            return 36
-        case .systemLarge:
-            return 53
-        default:
-            return 28
-        }
+    private var usesGlassStyleRendering: Bool {
+        renderingMode == .vibrant || renderingMode == .accented
     }
 
-    private var cellSize: CGFloat {
-        switch family {
-        case .systemSmall:
-            return 5
-        case .systemMedium:
-            return 6
-        case .systemLarge:
-            return 8
-        default:
-            return 6
-        }
+    private var usesAccentedRendering: Bool {
+        renderingMode == .accented
     }
 
+    private let maxWeeks = 36
+    private let cellSize: CGFloat = 6
     private var cellSpacing: CGFloat { 2 }
 
     // GitHub dark theme background
@@ -159,7 +143,7 @@ struct GitHubContributionsWidgetEntryView: View {
                     Text("\(heatmap.todayContributions)")
                         .foregroundStyle(contributionGreen)
                 }
-                .font(.system(family == .systemSmall ? .caption2 : .caption, design: .monospaced))
+                .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -176,12 +160,10 @@ struct GitHubContributionsWidgetEntryView: View {
                 }
             }
 
-            if family != .systemSmall {
-                Text("Updated \(entry.date.formatted(date: .omitted, time: .shortened))")
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.35))
-                    .lineLimit(1)
-            }
+            Text("Updated \(entry.date.formatted(date: .omitted, time: .shortened))")
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.35))
+                .lineLimit(1)
         }
         .padding(12)
     }
@@ -209,21 +191,36 @@ struct GitHubContributionsWidgetEntryView: View {
         RoundedRectangle(cornerRadius: 2)
             .fill(cellColor(for: clamped))
             .frame(width: cellSize, height: cellSize)
+            .widgetAccentable(usesAccentedRendering)
     }
 
     private func cellColor(for level: Int) -> Color {
-        switch level {
-        case 0:
-            return Color(red: 22/255, green: 27/255, blue: 34/255)
-        case 1:
-            return Color(red: 32/255, green: 120/255, blue: 72/255)
-        case 2:
-            return Color(red: 0/255, green: 143/255, blue: 74/255)
-        case 3:
-            return Color(red: 39/255, green: 185/255, blue: 87/255)
-        default:
-            return contributionGreen
+        if usesGlassStyleRendering {
+            switch level {
+            case 0:
+                return Color.white.opacity(0.0)
+            case 1:
+                return Color.white.opacity(0.25)
+            case 2:
+                return Color.white.opacity(0.5)
+            case 3:
+                return Color.white.opacity(0.75)
+            default:
+                return Color.white
+            }
+        } else {
+            switch level {
+            case 0:
+                return Color(red: 22/255, green: 27/255, blue: 34/255)
+            case 1:
+                return Color(red: 14/255, green: 68/255, blue: 41/255)
+            case 2:
+                return Color(red: 0/255, green: 109/255, blue: 50/255)
+            case 3:
+                return Color(red: 38/255, green: 166/255, blue: 65/255)
+            default:
+                return contributionGreen
+            }
         }
     }
 }
-

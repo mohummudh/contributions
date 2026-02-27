@@ -723,7 +723,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "WidgetExtension/GitHubContributionsWidget.swift WidgetExtension/Info.plist WidgetExtension/GitHubDesktopContributionsWidgetExtension.entitlements WidgetExtension/GitHubDesktopContributionsWidgetBundle.swift WidgetExtension";
+				DEVELOPMENT_ASSET_PATHS = "Shared/WidgetExtension/GitHubContributionsWidget.swift Shared/WidgetExtension/Info.plist Shared/WidgetExtension/GitHubDesktopContributionsWidgetExtension.entitlements Shared/WidgetExtension/GitHubDesktopContributionsWidgetBundle.swift Shared/WidgetExtension";
 				DEVELOPMENT_TEAM = 7B7PJH7DAN;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -738,7 +738,7 @@
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = WidgetExtension/Info.plist;
+				INFOPLIST_FILE = Shared/WidgetExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = GitHubDesktopContributionsWidgetExtension;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -773,7 +773,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "WidgetExtension/GitHubContributionsWidget.swift WidgetExtension/Info.plist WidgetExtension/GitHubDesktopContributionsWidgetExtension.entitlements WidgetExtension/GitHubDesktopContributionsWidgetBundle.swift WidgetExtension";
+				DEVELOPMENT_ASSET_PATHS = "Shared/WidgetExtension/GitHubContributionsWidget.swift Shared/WidgetExtension/Info.plist Shared/WidgetExtension/GitHubDesktopContributionsWidgetExtension.entitlements Shared/WidgetExtension/GitHubDesktopContributionsWidgetBundle.swift Shared/WidgetExtension";
 				DEVELOPMENT_TEAM = 7B7PJH7DAN;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -788,7 +788,7 @@
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = WidgetExtension/Info.plist;
+				INFOPLIST_FILE = Shared/WidgetExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = GitHubDesktopContributionsWidgetExtension;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
